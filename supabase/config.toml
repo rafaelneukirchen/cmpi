@@ -1,0 +1,31 @@
+project_id = "unlophbeegjpmjfykmwk"
+
+[functions.manage-users]
+verify_jwt = false
+
+[functions.import-ibge-cities]
+verify_jwt = false
+
+[functions.reset-campaign]
+verify_jwt = false
+
+[functions.update-city-coords]
+verify_jwt = false
+
+[functions.collect-social-data]
+verify_jwt = false
+
+[functions.register-equipe-membro]
+verify_jwt = false
+
+[functions.seed-tse-votos]
+verify_jwt = false
+
+[functions.receive-lead-webhook]
+verify_jwt = false
+
+[functions.whatsapp-evolution]
+verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false

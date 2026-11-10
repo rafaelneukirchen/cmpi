@@ -1,0 +1,162 @@
+-- Exportação sem dados: somente estrutura e lógica.
+CREATE OR REPLACE FUNCTION public.normalize_person_name(p_name text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+SET search_path TO 'public'
+AS $$
+  SELECT NULLIF(lower(regexp_replace(trim(coalesce(p_name, '')), '\s+', ' ', 'g')), '');
+$$;
+
+GRANT EXECUTE ON FUNCTION public.normalize_person_name(text) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.get_captados_hierarchy()
+RETURNS TABLE(
+  captado_id uuid,
+  captador_user_id uuid,
+  tipo_captador text,
+  lider_id uuid,
+  coord_id uuid
+)
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  WITH base AS (
+    SELECT
+      e.id AS captado_id,
+      e.captado_por_user_id AS captador_user_id,
+      e.tipo_captador,
+      e.lideranca_id,
+      p.lideranca_vinculada_id,
+      public.normalize_person_name(p.nome) AS profile_nome_norm,
+      em.coordenador_user_id AS equipe_coord_id,
+      public.normalize_person_name(em.nome) AS equipe_nome_norm,
+      public.normalize_phone(em.telefone) AS equipe_tel_norm,
+      ur.user_id AS self_coord_id
+    FROM public.eleitores_captados e
+    LEFT JOIN public.profiles p ON p.user_id = e.captado_por_user_id
+    LEFT JOIN public.equipe_membros em ON em.user_id = e.captado_por_user_id
+    LEFT JOIN public.user_roles ur
+      ON ur.user_id = e.captado_por_user_id
+     AND ur.role IN ('coordenador_estadual', 'coordenador_regional')
+  )
+  SELECT
+    b.captado_id,
+    b.captador_user_id,
+    b.tipo_captador,
+    COALESCE(
+      b.lideranca_id,
+      b.lideranca_vinculada_id,
+      cabo_por_telefone.lider_id,
+      cabo_por_nome.lider_id,
+      lider_por_nome.id
+    ) AS lider_id,
+    COALESCE(
+      lider_direto.coordenador_user_id,
+      lider_profile.coordenador_user_id,
+      lider_cabo_telefone.coordenador_user_id,
+      lider_cabo_nome.coordenador_user_id,
+      lider_por_nome.coordenador_user_id,
+      b.self_coord_id,
+      b.equipe_coord_id,
+      cabo_por_telefone.coordenador_user_id,
+      cabo_por_nome.coordenador_user_id
+    ) AS coord_id
+  FROM base b
+  LEFT JOIN public.liderancas lider_direto ON lider_direto.id = b.lideranca_id
+  LEFT JOIN public.liderancas lider_profile ON lider_profile.id = b.lideranca_vinculada_id
+  LEFT JOIN LATERAL (
+    SELECT c.id, c.lider_id, c.coordenador_user_id
+    FROM public.cabos_eleitorais c
+    WHERE b.equipe_tel_norm IS NOT NULL
+      AND b.equipe_tel_norm IN (public.normalize_phone(c.telefone), public.normalize_phone(c.whatsapp))
+    ORDER BY c.updated_at DESC NULLS LAST, c.created_at DESC NULLS LAST, c.id
+    LIMIT 1
+  ) cabo_por_telefone ON true
+  LEFT JOIN public.liderancas lider_cabo_telefone ON lider_cabo_telefone.id = cabo_por_telefone.lider_id
+  LEFT JOIN LATERAL (
+    SELECT c.id, c.lider_id, c.coordenador_user_id
+    FROM public.cabos_eleitorais c
+    WHERE public.normalize_person_name(c.nome) IS NOT NULL
+      AND public.normalize_person_name(c.nome) IN (b.profile_nome_norm, b.equipe_nome_norm)
+    ORDER BY
+      CASE WHEN public.normalize_person_name(c.nome) = b.profile_nome_norm THEN 0 ELSE 1 END,
+      c.updated_at DESC NULLS LAST,
+      c.created_at DESC NULLS LAST,
+      c.id
+    LIMIT 1
+  ) cabo_por_nome ON cabo_por_telefone.id IS NULL
+  LEFT JOIN public.liderancas lider_cabo_nome ON lider_cabo_nome.id = cabo_por_nome.lider_id
+  LEFT JOIN LATERAL (
+    SELECT l.id, l.coordenador_user_id
+    FROM public.liderancas l
+    WHERE public.normalize_person_name(l.nome) IS NOT NULL
+      AND public.normalize_person_name(l.nome) IN (b.profile_nome_norm, b.equipe_nome_norm)
+    ORDER BY
+      CASE WHEN public.normalize_person_name(l.nome) = b.profile_nome_norm THEN 0 ELSE 1 END,
+      l.updated_at DESC NULLS LAST,
+      l.created_at DESC NULLS LAST,
+      l.id
+    LIMIT 1
+  ) lider_por_nome ON b.lideranca_id IS NULL
+    AND b.lideranca_vinculada_id IS NULL
+    AND cabo_por_telefone.id IS NULL
+    AND cabo_por_nome.id IS NULL;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_captados_hierarchy() TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.get_captados_ranking_liderancas()
+RETURNS TABLE(user_id uuid, nome text, total bigint)
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT
+    l.id AS user_id,
+    l.nome,
+    COUNT(h.captado_id)::bigint AS total
+  FROM public.liderancas l
+  LEFT JOIN public.get_captados_hierarchy() h ON h.lider_id = l.id
+  GROUP BY l.id, l.nome
+  ORDER BY total DESC, l.nome ASC;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_captados_ranking_liderancas() TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.get_captados_ranking_coordenacao()
+RETURNS TABLE(user_id uuid, nome text, total bigint)
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  WITH coord_ids AS (
+    SELECT ur.user_id
+    FROM public.user_roles ur
+    WHERE ur.role IN ('coordenador_estadual', 'coordenador_regional')
+    UNION
+    SELECT DISTINCT em.coordenador_user_id
+    FROM public.equipe_membros em
+    WHERE em.coordenador_user_id IS NOT NULL
+    UNION
+    SELECT DISTINCT l.coordenador_user_id
+    FROM public.liderancas l
+    WHERE l.coordenador_user_id IS NOT NULL
+    UNION
+    SELECT DISTINCT c.coordenador_user_id
+    FROM public.cabos_eleitorais c
+    WHERE c.coordenador_user_id IS NOT NULL
+  )
+  SELECT
+    c.user_id,
+    COALESCE(p.nome, 'Coordenação') AS nome,
+    COUNT(h.captado_id)::bigint AS total
+  FROM coord_ids c
+  LEFT JOIN public.profiles p ON p.user_id = c.user_id
+  LEFT JOIN public.get_captados_hierarchy() h ON h.coord_id = c.user_id
+  GROUP BY c.user_id, p.nome
+  ORDER BY total DESC, nome ASC;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_captados_ranking_coordenacao() TO authenticated, service_role;

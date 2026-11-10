@@ -1,0 +1,20 @@
+20260309023757_22a83de2-14c3-4537-b6ad-a51edd1d3a38.sql: 1 comandos de dados excluídos
+20260320004510_b7bf4c89-9870-4f7c-be35-8d695b11ffde.sql: 1 comandos de dados excluídos
+20260320010938_1cf13109-6576-450a-875e-97d52652aa1f.sql: 1 comandos de dados excluídos
+20260410025716_5602fb87-ae22-4473-8a47-fefc46aa182a.sql: 1 comandos de dados excluídos
+20260423172425_6310a23c-a6c9-43a9-94c9-da63a78db12c.sql: 1 comandos de dados excluídos
+20260423174746_c6c28cd7-61a5-4f78-a039-dc5c7f347eac.sql: 1 comandos de dados excluídos
+20260424012957_5969039d-84e5-4e8e-9b36-9a1ec3dbf576.sql: 1 comandos de dados excluídos
+20260512001124_b3228be6-2659-4d6f-9cab-6f519690a1c4.sql: 1 comandos de dados excluídos
+20260518144518_8a7aed6b-b7b1-4ca5-9933-1c7f1c857751.sql: 1 comandos de dados excluídos
+20260518174500_seed_estados_cidades_tse.sql: carga de dados excluída
+20260520135730_3099e94f-6cb5-41de-bf1e-0e669e2d269a.sql: 2 comandos de dados excluídos
+20260607001522_db9ad3c7-bc03-4001-9814-a35c4a30b929.sql: 1 comandos de dados excluídos
+20260706220406_3956a7ed-4a47-48ad-95f8-2b624091261e.sql: 1 comandos de dados excluídos
+20260710141726_fb8d0e8b-a1ac-42b0-a5ba-bc6a82575cbf.sql: 1 comandos de dados excluídos
+20260715125722_cdcfd8e2-9820-40bf-9097-c6f00d28aee0.sql: 1 comandos de dados excluídos
+20260719041054_c21cd2ad-503a-45f4-a2ba-dd500b4630ca.sql: 2 comandos de dados excluídos
+20260818201337_5feac21d-9e69-4e77-a238-75b4c3fee1e3.sql: 2 comandos de dados excluídos
+20260820021810_1de00db2-c0fd-416d-861d-5fc6f4d51bbb.sql: 2 comandos de dados excluídos
+20260908175518_16c9d4d3-a34b-4b5a-917e-58c4995b550d.sql: 2 comandos de dados excluídos
+Senha temporária fixa removida apenas na cópia; arquivos de ambiente e dados não exportados.
